@@ -10,8 +10,8 @@ app = Flask(__name__)
 # <-- DATABASE CONFIG -->
 
 #change this to your mlab.com information.
-app.config['MONGO_DBNAME'] = 'DBNAME'
-app.config['MONGO_URI'] = 'mongodb://USER:LOGIN@MLAB/DBNAME'
+app.config['MONGO_DBNAME'] = 'el-piton'
+app.config['MONGO_URI'] = 'mongodb://root:piton@ds225078.mlab.com:25078/el-piton'
 mongo = PyMongo(app) #don't touch this line
 
 # <-- END DATABASE CONFIG -->
@@ -34,6 +34,28 @@ def is_logged_in(f):
 
 
 # <-- ROUTES -->
+
+#home route
+@app.route('/')
+def home():
+    return redirect(url_for('login'))
+
+#feed route
+@app.route('/feed', methods=['POST', 'GET'])
+def feed():
+    form = PostForm(request.form)
+    posts = mongo.db.posts
+    if request.method == 'POST':
+        title = form.title.data
+        body = form.body.data
+
+
+        posts.insert({
+            "title" : title,
+            "body" : body
+        })
+    post_list = reversed(list(posts.find({})))
+    return render_template('feed.html', form=form, posts=post_list)
 
 #registration route
 @app.route('/register', methods=['GET', 'POST'])
@@ -105,6 +127,9 @@ class LoginForm(Form):
     email = StringField('Email')
     password = PasswordField('Password')
 
+class PostForm(Form):
+    title = StringField('Title')
+    body = TextAreaField('Body')
 # <-- END MODELS -->
 
 
