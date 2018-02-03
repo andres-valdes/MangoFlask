@@ -10,11 +10,27 @@ app = Flask(__name__)
 # <-- DATABASE CONFIG -->
 
 #change this to your mlab.com information.
-app.config['MONGO_DBNAME'] = 'YOUR-DB-NAME'
-app.config['MONGO_URI'] = 'YOUR-MLAB-DB'
+app.config['MONGO_DBNAME'] = 'DBNAME'
+app.config['MONGO_URI'] = 'mongodb://USER:LOGIN@MLAB/DBNAME'
 mongo = PyMongo(app) #don't touch this line
 
 # <-- END DATABASE CONFIG -->
+
+
+# <-- HELPER FUNCTIONS -->
+
+#DO NOT TOUCH THIS, THESE ARE THE SACRED TEXTS.
+def is_logged_in(f):
+    """Checks if a user is logged in"""
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if 'is_logged_in' in session:
+            return f(*args, **kwargs)
+        flash('Unauthorized, please login.', 'danger')
+        return redirect(url_for('login'))
+    return wrap
+
+# <-- END HELPER FUNCTIONS -->
 
 
 # <-- ROUTES -->
@@ -28,7 +44,7 @@ def register():
         #fetching the fields from our form and storing them
         username = form.username.data
         email = form.email.data
-        password = sha256_crypt.encrypt(str(form.password.data)) #we encrypt the password before storing it
+        password = sha256_crypt.encrypt(form.password.data) #we encrypt the password before storing it
 
         users = mongo.db.users #storing the users collection in the database
         existing_user = users.find_one({'email' : email}) #a user matching the email we received from the user
@@ -51,7 +67,7 @@ def login():
     if request.method == 'POST': #if we're giving data to the server
         #fetching the fields from our form and storing them
         email = form.email.data
-        password_candidate = sha256_crypt.encrypt(str(form.password.data)) #storing the possible password from the form
+        password_candidate = form.password.data
 
         users = mongo.db.users #storing the users collection in the database
         user = users.find_one({'email' : email}) #a user matching the email we received from the user
@@ -71,22 +87,6 @@ def login():
 # <-- END ROUTES -->
 
 
-# <-- HELPER FUNCTIONS -->
-
-#DO NOT TOUCH THIS, THESE ARE THE SACRED TEXTS.
-def is_logged_in(f):
-    """Checks if a user is logged in"""
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if 'is_logged_in' in session:
-            return f(*args, **kwargs)
-        flash('Unauthorized, Please login', 'danger')
-        return redirect(url_for('user_route.login'))
-    return wrap
-
-# <-- END HELPER FUNCTIONS -->
-
-
 # <-- MODELS -->
 
 #Defining the model for the registration form.
@@ -96,8 +96,7 @@ class RegisterForm(Form):
     email = StringField('Email', [validators.Length(min=6, max=50)])
     password = PasswordField('Password', [
         validators.DataRequired(),
-        validators.EqualTo('Confirm Password', message='Passwords do not match')
-    ])
+        validators.EqualTo('confirm', message='Passwords do not match')])
     confirm = PasswordField('Confirm Password', [validators.DataRequired()])
 
 #Defining the model for the login form
